@@ -1,3 +1,4 @@
+import base64
 import re
 import requests
 from flask import Blueprint, Response, request, abort
@@ -114,6 +115,15 @@ def proxy_subtitle(subtitle_id):
     Proxy subtitle files with correct content-type
     """
     original_url = subtitle_mappings.get(subtitle_id)
+    if not original_url:
+        # Stateless decode: URL is encoded in subtitle ID or query param
+        encoded_url = request.args.get('u', '')
+        if encoded_url:
+            try:
+                encoded_url += '=' * (-len(encoded_url) % 4)
+                original_url = base64.urlsafe_b64decode(encoded_url).decode('utf-8')
+            except Exception:
+                pass
     if not original_url:
         abort(404)
     

@@ -85,7 +85,7 @@ def addon_stream(content_type: str, content_id: str, lang: str = None):
         episode = None
 
     try:
-    host = os.getenv('REDIRECT_URL') or request.headers.get('X-Forwarded-Host') or request.host
+        host = os.getenv('REDIRECT_URL') or request.headers.get('X-Forwarded-Host') or request.host
         data = wawin_client.get_episode_streams(slug, season, episode)
         streams = []
         

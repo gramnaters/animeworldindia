@@ -1,4 +1,5 @@
 import re
+import base64
 import requests
 from app.routes.utils import get_random_agent
 from config import Config
@@ -47,7 +48,11 @@ async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str
         else:
             video_url = video_url.replace('https://play.zephyrix.top', f'{proto}://{host}')
 
-        stream_headers = None
+        stream_headers = {
+            'request': {
+                'Referer': 'https://play.zephyrix.top/'
+            }
+        }
         
         # Get subtitles from player page
         subtitles = []
@@ -55,11 +60,9 @@ async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str
             page_resp = requests.get(player_url, headers=api_headers, timeout=30)
             page_resp.raise_for_status()
             
-            # Find playerjsSubtitle variable
             subtitle_match = re.search(r'var playerjsSubtitle = "([^"]+)"', page_resp.text)
             if subtitle_match:
                 subtitle_data = subtitle_match.group(1)
-                # Parse subtitle entries: [Language]url
                 for line in subtitle_data.split('\n'):
                     line = line.strip()
                     if not line:
@@ -70,19 +73,13 @@ async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str
                         lang_name = sub_match.group(1)
                         sub_url = sub_match.group(2)
                         
-                        # Convert language name to ISO code
                         lang_code = 'eng' if 'english' in lang_name.lower() else lang_name.lower()[:3]
-                        
-                        # Determine file extension from original URL
                         file_ext = '.srt' if sub_url.endswith('.srt') else '.vtt'
+                        
+                        # Encode URL in subtitle ID (stateless, works on Vercel)
+                        encoded_url = base64.urlsafe_b64encode(sub_url.encode()).decode().rstrip('=')
                         subtitle_id = f"{video_id}_{lang_code}{file_ext}"
-                        
-                        # Store mapping for proxy route
-                        from app.routes.proxy import subtitle_mappings
-                        subtitle_mappings[subtitle_id] = sub_url
-                        
-                        # Proxy subtitle URL through our server
-                        proxied_sub_url = f"{Config.PROTOCOL}://{host}/subtitles/{subtitle_id}"
+                        proxied_sub_url = f"{Config.PROTOCOL}://{host}/subtitles/{subtitle_id}?u={encoded_url}"
                         
                         subtitles.append({
                             'id': f"{video_id}_{lang_code}",
