@@ -3,7 +3,7 @@ import requests
 from app.routes.utils import get_random_agent
 from config import Config
 
-async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str = None):
+async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str = None, host: str = 'localhost'):
     """
     Extract video URL and subtitles from Zephyrflick player
     :param player_url: Zephyrflick player URL
@@ -41,10 +41,11 @@ async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str
             return None, None, None, []
         
         # Rewrite URL to use our proxy (with language if specified)
+        proto = Config.PROTOCOL
         if preferred_lang:
-            video_url = video_url.replace('https://play.zephyrix.top', f'{Config.PROTOCOL}://{Config.REDIRECT_URL}/{preferred_lang}')
+            video_url = video_url.replace('https://play.zephyrix.top', f'{proto}://{host}/{preferred_lang}')
         else:
-            video_url = video_url.replace('https://play.zephyrix.top', f'{Config.PROTOCOL}://{Config.REDIRECT_URL}')
+            video_url = video_url.replace('https://play.zephyrix.top', f'{proto}://{host}')
 
         stream_headers = None
         
@@ -81,7 +82,7 @@ async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str
                         subtitle_mappings[subtitle_id] = sub_url
                         
                         # Proxy subtitle URL through our server
-                        proxied_sub_url = f"{Config.PROTOCOL}://{Config.REDIRECT_URL}/subtitles/{subtitle_id}"
+                        proxied_sub_url = f"{Config.PROTOCOL}://{host}/subtitles/{subtitle_id}"
                         
                         subtitles.append({
                             'id': f"{video_id}_{lang_code}",

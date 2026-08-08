@@ -1,15 +1,16 @@
 import urllib.parse
-from flask import Blueprint, abort
+from flask import Blueprint, abort, request
 from .manifest import MANIFEST
 
 from app.routes import wawin_client
 from app.routes.utils import respond_with
 from app.mapper import get_or_create_slug_mapping
+from config import Config
 
 stream_bp = Blueprint('stream', __name__)
 
 
-def process_stream_sync(stream_data, preferred_lang=None):
+def process_stream_sync(stream_data, preferred_lang=None, host='localhost'):
     """Process a single stream source"""
     from app.players.zephyrflick import get_video_from_zephyrflick_player
     import asyncio
@@ -26,7 +27,7 @@ def process_stream_sync(stream_data, preferred_lang=None):
                 asyncio.set_event_loop(loop)
             
             video_url, quality, headers, subtitles = loop.run_until_complete(
-                get_video_from_zephyrflick_player(url, preferred_lang)
+                get_video_from_zephyrflick_player(url, preferred_lang, host)
             )
         except Exception as e:
             print(f"Error processing stream: {e}")
@@ -83,11 +84,12 @@ def addon_stream(content_type: str, content_id: str, lang: str = None):
         episode = None
 
     try:
+        host = request.headers.get('X-Forwarded-Host', request.host)
         data = wawin_client.get_episode_streams(slug, season, episode)
         streams = []
         
         for stream_data in data.get('streams', []):
-            stream = process_stream_sync(stream_data, lang)
+            stream = process_stream_sync(stream_data, lang, host)
             if stream:
                 streams.append(stream)
         
