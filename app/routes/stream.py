@@ -188,3 +188,85 @@ def debug_imdb2slug(imdb_id: str):
         result['final_slug'] = None
     
     return jsonify(result)
+
+
+@stream_bp.route('/debug/stream/<content_type>/<content_id>')
+def debug_stream(content_type: str, content_id: str):
+    """Debug endpoint to trace full stream flow"""
+    result = {
+        'content_type': content_type,
+        'content_id': content_id,
+        'steps': {}
+    }
+    
+    content_id = urllib.parse.unquote(content_id)
+    parts = content_id.split(":")
+    
+    if len(parts) < 1 or not parts[0].startswith('tt'):
+        result['error'] = 'Invalid content_id format'
+        return jsonify(result)
+    
+    imdb_id = parts[0]
+    if len(parts) == 3:
+        season = int(parts[1])
+        episode = int(parts[2])
+    else:
+        season = None
+        episode = None
+    
+    result['parsed'] = {'imdb_id': imdb_id, 'season': season, 'episode': episode}
+    
+    # Step 1: Get slug
+    slug = get_or_create_slug_mapping(imdb_id)
+    result['steps']['get_slug'] = {'slug': slug}
+    if not slug:
+        result['error'] = 'No slug found'
+        return jsonify(result)
+    
+    # Step 2: Get episode streams from WAWIN
+    try:
+        data = wawin.get_episode_streams(slug, season, episode)
+        result['steps']['get_episode_streams'] = {
+            'success': True,
+            'streams_found': len(data.get('streams', [])),
+            'streams': data.get('streams', [])
+        }
+    except Exception as e:
+        result['steps']['get_episode_streams'] = {'success': False, 'error': str(e)}
+        return jsonify(result)
+    
+    if not data.get('streams'):
+        result['error'] = 'No streams from WAWIN'
+        return jsonify(result)
+    
+    # Step 3: Process each stream
+    processed = []
+    for stream_data in data.get('streams', []):
+        try:
+            import asyncio
+            import nest_asyncio
+            from app.players.zephyrflick import get_video_from_zephyrflick_player
+            
+            nest_asyncio.apply()
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            video_url, quality, headers, subtitles = loop.run_until_complete(
+                get_video_from_zephyrflick_player(stream_data['url'], None)
+            )
+            
+            processed.append({
+                'player_url': stream_data['url'],
+                'video_url': video_url,
+                'quality': quality,
+                'subtitles': len(subtitles) if subtitles else 0,
+                'success': video_url is not None
+            })
+        except Exception as e:
+            processed.append({'player_url': stream_data['url'], 'error': str(e), 'success': False})
+    
+    result['steps']['process_streams'] = processed
+    return jsonify(result)
