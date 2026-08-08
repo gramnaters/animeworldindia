@@ -1,11 +1,13 @@
 import urllib.parse
-from flask import Blueprint, abort
+from flask import Blueprint, abort, jsonify
 from .manifest import MANIFEST
 
 from app.routes import wawin_client
 from app.routes.utils import respond_with
 from app.database import db
-from app.mapper import get_or_create_slug_mapping
+from app.mapper import get_or_create_slug_mapping, get_tmdb_details_from_imdb
+from app.routes import wawin_client as wawin
+from config import Config
 
 stream_bp = Blueprint('stream', __name__)
 
@@ -110,3 +112,79 @@ def addon_stream(content_type: str, content_id: str, lang: str = None):
     except Exception as e:
         print(f"Error getting streams: {e}")
         return respond_with({'streams': []}, use_etag=False)
+
+
+@stream_bp.route('/debug/imdb2slug/<imdb_id>')
+def debug_imdb2slug(imdb_id: str):
+    """Debug endpoint to trace IMDB → slug mapping"""
+    result = {
+        'imdb_id': imdb_id,
+        'db_type': Config.DB_TYPE,
+        'tmdb_key_set': bool(Config.TMDB_API_KEY),
+        'steps': {}
+    }
+    
+    # Step 1: Check DB mapping
+    slug = db.get_slug_by_imdb(imdb_id)
+    result['steps']['db_lookup'] = {'found': slug is not None, 'slug': slug}
+    if slug:
+        result['final_slug'] = slug
+        return jsonify(result)
+    
+    # Step 2: TMDB details from IMDB
+    try:
+        tmdb_details = get_tmdb_details_from_imdb(imdb_id)
+        result['steps']['tmdb_find'] = {'success': tmdb_details is not None, 'data': tmdb_details}
+    except Exception as e:
+        result['steps']['tmdb_find'] = {'success': False, 'error': str(e)}
+        return jsonify(result)
+    
+    if not tmdb_details:
+        return jsonify(result)
+    
+    title = tmdb_details.get('title') or tmdb_details.get('name')
+    poster_path = tmdb_details.get('poster_path')
+    tmdb_id = str(tmdb_details['id'])
+    media_type = tmdb_details.get('media_type')
+    
+    result['steps']['tmdb_details'] = {
+        'title': title,
+        'poster_path': poster_path,
+        'tmdb_id': tmdb_id,
+        'media_type': media_type
+    }
+    
+    if not title:
+        return jsonify(result)
+    
+    # Step 3: WAWIN search
+    try:
+        search_results = wawin.search_anime(title)
+        result['steps']['wawin_search'] = {
+            'success': True,
+            'count': len(search_results),
+            'results': [{'slug': r.get('slug'), 'title': r.get('title'), 'poster': r.get('poster', '')[:80]} for r in search_results[:3]]
+        }
+    except Exception as e:
+        result['steps']['wawin_search'] = {'success': False, 'error': str(e)}
+        return jsonify(result)
+    
+    if not search_results:
+        return jsonify(result)
+    
+    # Step 4: Poster match
+    try:
+        from app.mapper import match_by_poster
+        matched = match_by_poster(poster_path, search_results, tmdb_id, media_type)
+        result['steps']['poster_match'] = {'success': matched is not None, 'matched_slug': matched.get('slug') if matched else None}
+    except Exception as e:
+        result['steps']['poster_match'] = {'success': False, 'error': str(e)}
+        return jsonify(result)
+    
+    if matched:
+        slug = matched.get('slug')
+        result['final_slug'] = slug
+    else:
+        result['final_slug'] = None
+    
+    return jsonify(result)
