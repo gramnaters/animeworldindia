@@ -1,4 +1,5 @@
 import urllib.parse
+import os
 from flask import Blueprint, abort, request
 from .manifest import MANIFEST
 
@@ -84,7 +85,7 @@ def addon_stream(content_type: str, content_id: str, lang: str = None):
         episode = None
 
     try:
-        host = request.headers.get('X-Forwarded-Host', request.host)
+    host = os.getenv('REDIRECT_URL') or request.headers.get('X-Forwarded-Host') or request.host
         data = wawin_client.get_episode_streams(slug, season, episode)
         streams = []
         
