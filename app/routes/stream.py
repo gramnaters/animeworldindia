@@ -16,16 +16,13 @@ def process_stream_sync(stream_data, preferred_lang=None):
     """Process a single stream source"""
     from app.players.zephyrflick import get_video_from_zephyrflick_player
     import asyncio
-    import nest_asyncio
     
     player = stream_data.get('player')
     url = stream_data.get('url')
     
     if player == 'zephyrflick':
         try:
-            # Allow nested event loops
-            nest_asyncio.apply()
-            
+            # Create new event loop (no nest_asyncio needed in Python 3.10+)
             try:
                 loop = asyncio.get_event_loop()
             except RuntimeError:
