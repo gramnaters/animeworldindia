@@ -66,14 +66,14 @@ def proxy_hls(path, lang=None):
     """
     # Get original URL with query params
     query_string = request.query_string.decode('utf-8')
-    original_url = f"https://play.zephyrflick.top/cdn/hls/{path}"
+    original_url = f"https://play.zephyrix.top/cdn/hls/{path}"
     if query_string:
         original_url += f"?{query_string}"
     
     try:
         headers = {
             'User-Agent': get_random_agent(),
-            'Referer': 'https://play.zephyrflick.top/'
+            'Referer': 'https://play.zephyrix.top/'
         }
         
         resp = requests.get(original_url, headers=headers, timeout=30)
@@ -88,12 +88,12 @@ def proxy_hls(path, lang=None):
         # Rewrite relative URLs to absolute URLs pointing to original server
         content = re.sub(
             r'URI="(/hls/[^"]+)"',
-            r'URI="https://play.zephyrflick.top\1"',
+            r'URI="https://play.zephyrix.top\1"',
             content
         )
         content = re.sub(
             r'^(/hls/.+)$',
-            r'https://play.zephyrflick.top\1',
+            r'https://play.zephyrix.top\1',
             content,
             flags=re.MULTILINE
         )
@@ -120,7 +120,7 @@ def proxy_subtitle(subtitle_id):
     try:
         headers = {
             'User-Agent': get_random_agent(),
-            'Referer': 'https://play.zephyrflick.top/'
+            'Referer': 'https://play.zephyrix.top/'
         }
         
         resp = requests.get(original_url, headers=headers, timeout=30)

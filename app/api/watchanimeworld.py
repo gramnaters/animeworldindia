@@ -426,7 +426,7 @@ class WatchAnimeWorldAPI:
             
             for iframe in soup.find_all('iframe'):
                 src = iframe.get('src', '') or iframe.get('data-src', '')
-                if 'zephyrflick' in src.lower():
+                if 'zephyrix' in src.lower() or 'zephyrflick' in src.lower():
                     streams.append({
                         'player': 'zephyrflick',
                         'url': src if src.startswith('http') else urljoin(BASE_URL, src)

@@ -25,7 +25,7 @@ async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str
         }
         
         # Make POST request to get video source
-        api_url = f"https://play.zephyrflick.top/player/index.php"
+        api_url = f"https://play.zephyrix.top/player/index.php"
         params = {
             'data': video_id,
             'do': 'getVideo'
@@ -42,9 +42,9 @@ async def get_video_from_zephyrflick_player(player_url: str, preferred_lang: str
         
         # Rewrite URL to use our proxy (with language if specified)
         if preferred_lang:
-            video_url = video_url.replace('https://play.zephyrflick.top', f'{Config.PROTOCOL}://{Config.REDIRECT_URL}/{preferred_lang}')
+            video_url = video_url.replace('https://play.zephyrix.top', f'{Config.PROTOCOL}://{Config.REDIRECT_URL}/{preferred_lang}')
         else:
-            video_url = video_url.replace('https://play.zephyrflick.top', f'{Config.PROTOCOL}://{Config.REDIRECT_URL}')
+            video_url = video_url.replace('https://play.zephyrix.top', f'{Config.PROTOCOL}://{Config.REDIRECT_URL}')
 
         stream_headers = None
         
