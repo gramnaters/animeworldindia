@@ -181,11 +181,13 @@ def get_or_create_slug_mapping(imdb_id: str) -> Optional[str]:
     
     # Check if we already tried and failed (in-memory cache)
     if imdb_id in failed_mappings_cache:
+        print(f"Mapper: {imdb_id} in failed cache")
         return None
     
     # Check if we already tried and failed (database with TTL)
     if db.is_failed_mapping(imdb_id):
         failed_mappings_cache[imdb_id] = True
+        print(f"Mapper: {imdb_id} in failed DB")
         return None
     
     # Check cache first
@@ -201,6 +203,7 @@ def get_or_create_slug_mapping(imdb_id: str) -> Optional[str]:
     # Get TMDB details from IMDB ID
     tmdb_details = get_tmdb_details_from_imdb(imdb_id)
     if not tmdb_details:
+        print(f"Mapper: no TMDB details for {imdb_id}")
         failed_mappings_cache[imdb_id] = True
         db.add_failed_mapping(imdb_id)
         return None
@@ -217,6 +220,7 @@ def get_or_create_slug_mapping(imdb_id: str) -> Optional[str]:
     # Search on WatchAnimeWorld
     search_results = wawin_client.search_anime(title)
     if not search_results:
+        print(f"Mapper: no WAW results for {title}")
         failed_mappings_cache[imdb_id] = True
         db.add_failed_mapping(imdb_id)
         return None
@@ -224,6 +228,7 @@ def get_or_create_slug_mapping(imdb_id: str) -> Optional[str]:
     # Match by poster (required)
     matched = match_by_poster(poster_path, search_results, tmdb_id, tmdb_details['media_type'])
     if not matched:
+        print(f"Mapper: no poster match for {title}")
         failed_mappings_cache[imdb_id] = True
         db.add_failed_mapping(imdb_id)
         return None

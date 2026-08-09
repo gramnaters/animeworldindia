@@ -75,6 +75,7 @@ def addon_stream(content_type: str, content_id: str, lang: str = None):
     
     slug = get_or_create_slug_mapping(imdb_id)
     if not slug:
+        print(f"Stream: no slug found for {imdb_id}")
         return respond_with({'streams': []}, use_etag=False)
     
     if len(parts) == 3:
